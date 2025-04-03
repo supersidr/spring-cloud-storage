@@ -1,33 +1,19 @@
-FROM maven:3.8.4-openjdk-11-slim AS build
+FROM eclipse-temurin:17-jdk-alpine as build
+WORKDIR /workspace/app
 
-WORKDIR /app
-
-# Copy the POM file
+COPY mvnw .
+COPY .mvn .mvn
 COPY pom.xml .
+COPY src src
 
-# Download dependencies
-RUN mvn dependency:go-offline -B
+RUN chmod +x ./mvnw
+RUN ./mvnw package -DskipTests
+RUN mkdir -p target/dependency && (cd target/dependency; jar -xf ../cloud-service-0.0.1-SNAPSHOT.jar)
 
-# Copy source code
-COPY src ./src
-
-# Build the application
-RUN mvn package -DskipTests
-
-# Create runtime image
-FROM openjdk:17-jre-slim
-
-WORKDIR /app
-
-# Create storage directory
-RUN mkdir -p /app/storage
-
-# Copy the JAR file from the build stage
-COPY --from=build /app/target/cloud-service-1.0.0.jar /app/cloud-service.jar
-
-# Set storage location environment variable
-ENV APP_STORAGE_LOCATION=/app/storage
-
-EXPOSE 8080
-
-ENTRYPOINT ["java", "-jar", "/app/cloud-service.jar"]
+FROM eclipse-temurin:17-jre-alpine
+VOLUME /tmp
+ARG DEPENDENCY=/workspace/app/target/dependency
+COPY --from=build ${DEPENDENCY}/BOOT-INF/lib /app/lib
+COPY --from=build ${DEPENDENCY}/META-INF /app/META-INF
+COPY --from=build ${DEPENDENCY}/BOOT-INF/classes /app
+ENTRYPOINT ["java","-cp","app:app/lib/*","com.cloudservice.CloudServiceApplication"]

@@ -1,11 +1,9 @@
 package ru.netology.backend.controller;
 
-import ru.netology.backend.model.FileMetadata;
-import ru.netology.backend.model.User;
-import ru.netology.backend.service.AuthService;
-import ru.netology.backend.service.FileService;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import ru.netology.backend.model.dto.FileDto;
+import ru.netology.backend.model.dto.RenameFileDto;
+import ru.netology.backend.model.entity.FileEntity;
+import ru.netology.backend.service.FileStorageService;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -13,60 +11,29 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 @RestController
-@RequiredArgsConstructor
-@Slf4j
 public class FileController {
-    private final FileService fileService;
-    private final AuthService authService;
 
-    @GetMapping("/list")
-    public ResponseEntity<List<Map<String, Object>>> getFileList(
-            @RequestHeader("auth-token") String token,
-            @RequestParam(required = false) Integer limit) {
+    private final FileStorageService fileStorageService;
 
-        User user = authService.getUserByToken(token);
-        List<FileMetadata> files = fileService.getFileList(user, limit);
-
-//        List<Map<String, Object>> response = files.stream()
-//                .map(file -> Map.of(
-//                        "filename", file.getFilename(),
-//                        "size", file.getSize()
-//                )).collect(Collectors.toList());
-        List<Map<String, Object>> response = files.stream()
-                .map(file -> {
-                    Map<String, Object> fileMap = new HashMap<>();
-                    fileMap.put("filename", file.getFilename());
-                    fileMap.put("size", file.getSize());
-                    return fileMap;
-                }).collect(Collectors.toList());
-
-        return ResponseEntity.ok(response);
+    public FileController(FileStorageService fileStorageService) {
+        this.fileStorageService = fileStorageService;
     }
 
     @PostMapping("/file")
-    public ResponseEntity<Void> UploadFile(
-            @RequestHeader("auth-token") String token,
-            @RequestParam(required = false) String filename,
-            @RequestParam("file") MultipartFile file) throws IOException {
-        User user = authService.getUserByToken(token);
-        fileService.uploadFile(user, file, filename);
+    public ResponseEntity<Void> uploadFile(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "filename", required = false) String filename) {
+
+        FileEntity savedFile = fileStorageService.storeFile(file, filename);
         return ResponseEntity.ok().build();
     }
 
     @GetMapping("/file")
-    public ResponseEntity<Resource> downloadFile(
-            @RequestHeader("auth-token") String token,
-            @RequestParam(required = false) String filename
-    ) throws IOException {
-        User user = authService.getUserByToken(token);
-        Resource resource = fileService.downloadFile(user, filename);
+    public ResponseEntity<Resource> downloadFile(@RequestParam("filename") String filename) {
+        Resource resource = fileStorageService.loadFileAsResource(filename);
 
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
@@ -75,25 +42,25 @@ public class FileController {
     }
 
     @DeleteMapping("/file")
-    public ResponseEntity<Void> deleteFile(
-            @RequestHeader("auth-token") String token,
-            @RequestParam(required = false) String filename
-    ) throws IOException {
-        User user = authService.getUserByToken(token);
-        fileService.deleteFile(user, filename);
+    public ResponseEntity<Void> deleteFile(@RequestParam("filename") String filename) {
+        fileStorageService.deleteFile(filename);
         return ResponseEntity.ok().build();
     }
 
     @PutMapping("/file")
     public ResponseEntity<Void> renameFile(
-            @RequestHeader("auth-token") String token,
-            @RequestParam String filename,
-            @RequestBody Map<String, Object> request
-    ) throws IOException {
-        String newFilename = (String) request.get("name");
-        User user = authService.getUserByToken(token);
-        fileService.renameFile(user, filename, newFilename);
+            @RequestParam("filename") String filename,
+            @RequestBody RenameFileDto renameFileDto) {
 
+        fileStorageService.renameFile(filename, renameFileDto.getName());
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/list")
+    public ResponseEntity<List<FileDto>> getFileList(
+            @RequestParam(value = "limit", required = false) Integer limit) {
+
+        List<FileDto> files = fileStorageService.getFilesList(limit);
+        return ResponseEntity.ok(files);
     }
 }
