@@ -1,5 +1,6 @@
 package ru.netology.backend.service;
 
+import org.springframework.stereotype.Service;
 import ru.netology.backend.model.dto.LoginDto;
 import ru.netology.backend.model.entity.UserEntity;
 

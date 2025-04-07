@@ -4,7 +4,7 @@ info:
   description: Cloud API
   version: 1.0.0
 servers:
-  - url: 'http://localhost:8080/cloud'
+  - url: 'http://localhost:8080/'
     description: local server
 paths:
   /login:

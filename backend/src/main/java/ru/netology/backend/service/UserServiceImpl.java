@@ -13,6 +13,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
+
 @Service
 public class UserServiceImpl implements UserService {
 
@@ -32,15 +34,22 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public String login(LoginDto loginDto) {
-        UserEntity user = userRepository.findByLogin(loginDto.getLogin())
-                .orElseThrow(() -> new BadCredentialsException("Invalid login or password"));
+//        UserEntity user = userRepository.findByLogin(loginDto.getLogin())
+//                .orElseThrow(() -> new BadCredentialsException("Invalid login or password"));
+        Optional<UserEntity> userOptional = userRepository.findByLogin(loginDto.getLogin());
+        System.out.println("User Optional: " + userOptional);
+        UserEntity user = userOptional.orElseThrow(() -> new BadCredentialsException("Invalid login or password"));
 
-        if (!passwordEncoder.matches(loginDto.getPassword(), user.getPassword())) {
+        String userPassedEncodedPassword = passwordEncoder.encode(loginDto.getPassword());
+
+
+        boolean matchesUserPasswordsPassedAndQueried = passwordEncoder.matches(loginDto.getPassword(), userPassedEncodedPassword);
+        if (matchesUserPasswordsPassedAndQueried) {
+            TokenEntity token = tokenService.createToken(user);
+            return token.getToken();
+        } else {
             throw new BadCredentialsException("Invalid login or password");
         }
-
-        TokenEntity token = tokenService.createToken(user);
-        return token.getToken();
     }
 
     @Override
