@@ -67,7 +67,11 @@ public class AuthTokenFilter extends OncePerRequestFilter {
     }
 
     private String parseToken(HttpServletRequest request) {
-        return request.getHeader("auth-token");
+        String headerAuth = request.getHeader("auth-token");
+        if (headerAuth != null && headerAuth.startsWith("Bearer ")) {
+            return headerAuth.substring(7); // Убираем "Bearer " из начала строки
+        }
+        return headerAuth;
     }
 
     @Override
